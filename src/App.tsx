@@ -490,9 +490,7 @@ export default function App() {
                     type="text"
                     name="username"
                     required
-                    defaultValue="admin"
                     className="w-full bg-neutral-950 border border-neutral-800 text-white rounded-lg px-3.5 py-2 text-sm focus:border-orange-500 focus:outline-none transition-colors"
-                    placeholder="Ex: admin"
                   />
                 </div>
 
@@ -502,7 +500,6 @@ export default function App() {
                     type="password"
                     name="password"
                     required
-                    defaultValue="MSC2026@ifmaker"
                     className="w-full bg-neutral-950 border border-neutral-800 text-white rounded-lg px-3.5 py-2 text-sm focus:border-orange-500 focus:outline-none transition-colors"
                     placeholder="••••••••"
                   />
@@ -513,13 +510,6 @@ export default function App() {
                     ❌ {loginError}
                   </p>
                 )}
-
-                <div className="bg-neutral-950 p-2.5 rounded-lg border border-neutral-805/80 text-center">
-                  <span className="text-[10px] text-neutral-500 font-mono">
-                    💡 Credenciais de Acesso:<br />
-                    Usuário: <span className="text-neutral-300 font-bold">admin</span> | Senha: <span className="text-neutral-200 font-bold">MSC2026@ifmaker</span>
-                  </span>
-                </div>
 
                 <div className="flex gap-2 pt-2">
                   <button
