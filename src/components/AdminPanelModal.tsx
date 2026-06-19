@@ -37,50 +37,56 @@ create table if not exists public.msc_tournaments (
 );
 
 -- Segurança Robusta: Ativar Políticas de Segurança RLS
--- Protege contra leitores anon que tentam apagar ou alterar sua banco de dados!
-alter table msc_teams enable row level security;
-alter table msc_tournaments enable row level security;
+-- Protege contra leitores anon que tentam apagar ou alterar seu banco de dados!
+alter table public.msc_teams enable row level security;
+alter table public.msc_tournaments enable row level security;
 
--- Drop de políticas legadas (caso existissem políticas públicas vulneráveis)
-drop policy if exists "Permitir leitura pública de times" on msc_teams;
-drop policy if exists "Permitir inserção pública de times" on msc_teams;
-drop policy if exists "Permitir atualização pública de times" on msc_teams;
-drop policy if exists "Permitir deleção pública de times" on msc_teams;
+-- Drop de políticas antigas/repetidas (caso existissem políticas públicas vulneráveis ou duplicadas)
+drop policy if exists "Permitir leitura pública de times" on public.msc_teams;
+drop policy if exists "Permitir inserção pública de times" on public.msc_teams;
+drop policy if exists "Permitir atualização pública de times" on public.msc_teams;
+drop policy if exists "Permitir deleção pública de times" on public.msc_teams;
+drop policy if exists "Permitir inserção de times por administradores" on public.msc_teams;
+drop policy if exists "Permitir atualização de times por administradores" on public.msc_teams;
+drop policy if exists "Permitir deleção de times por administradores" on public.msc_teams;
 
-drop policy if exists "Permitir leitura pública de torneios" on msc_tournaments;
-drop policy if exists "Permitir inserção pública de torneios" on msc_tournaments;
-drop policy if exists "Permitir atualização pública de torneios" on msc_tournaments;
-drop policy if exists "Permitir deleção pública de torneios" on msc_tournaments;
+drop policy if exists "Permitir leitura pública de torneios" on public.msc_tournaments;
+drop policy if exists "Permitir inserção pública de torneios" on public.msc_tournaments;
+drop policy if exists "Permitir atualização pública de torneios" on public.msc_tournaments;
+drop policy if exists "Permitir deleção pública de torneios" on public.msc_tournaments;
+drop policy if exists "Permitir inserção de torneios por administradores" on public.msc_tournaments;
+drop policy if exists "Permitir atualização de torneios por administradores" on public.msc_tournaments;
+drop policy if exists "Permitir deleção de torneios por administradores" on public.msc_tournaments;
 
 -- POLÍTICAS DE TIMES
 -- Qualquer um pode ler os times (público)
 create policy "Permitir leitura pública de times" 
-on msc_teams for select using (true);
+on public.msc_teams for select using (true);
 
 -- Apenas administradores autenticados podem inserir/editar/deletar
 create policy "Permitir inserção de times por administradores" 
-on msc_teams for insert to authenticated with check (true);
+on public.msc_teams for insert to authenticated with check (true);
 
 create policy "Permitir atualização de times por administradores" 
-on msc_teams for update to authenticated using (true);
+on public.msc_teams for update to authenticated using (true);
 
 create policy "Permitir deleção de times por administradores" 
-on msc_teams for delete to authenticated using (true);
+on public.msc_teams for delete to authenticated using (true);
 
 -- POLÍTICAS DE TORNEIOS
 -- Qualquer um pode ler o status do torneio e as chaves (público)
 create policy "Permitir leitura pública de torneios" 
-on msc_tournaments for select using (true);
+on public.msc_tournaments for select using (true);
 
 -- Apenas administradores autenticados podem inserir/editar/deletar
 create policy "Permitir inserção de torneios por administradores" 
-on msc_tournaments for insert to authenticated with check (true);
+on public.msc_tournaments for insert to authenticated with check (true);
 
 create policy "Permitir atualização de torneios por administradores" 
-on msc_tournaments for update to authenticated using (true);
+on public.msc_tournaments for update to authenticated using (true);
 
 create policy "Permitir deleção de torneios por administradores" 
-on msc_tournaments for delete to authenticated using (true);`;
+on public.msc_tournaments for delete to authenticated using (true);`;
 
 export default function AdminPanelModal({
   tournament,
