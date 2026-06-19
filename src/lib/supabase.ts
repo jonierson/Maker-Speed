@@ -2,14 +2,28 @@ import { createClient } from '@supabase/supabase-js';
 import { Team, Tournament } from '../types';
 
 // Sanitize Supabase URL if it contains the "/rest/v1/" suffix
-let supabaseUrl = ((import.meta as any).env?.VITE_SUPABASE_URL || '').trim();
+let rawUrlFromEnv = ((import.meta as any).env?.VITE_SUPABASE_URL || '').trim();
+let rawKeyFromEnv = ((import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '').trim();
+
+// Fallback logic if environment variables are not correctly configured (e.g., contains 'MSC2026@ifmaker' or is empty)
+const defaultUrl = 'https://ltkxrsuyqsimezyfpxva.supabase.co';
+const defaultKey = 'sb_publishable_zAGBan2DTfOytttSQ389Ng_AbqCH5EN';
+
+let supabaseUrl = rawUrlFromEnv;
+if (!supabaseUrl || !supabaseUrl.startsWith('http') || supabaseUrl.includes('MSC2026')) {
+  supabaseUrl = defaultUrl;
+}
+
 if (supabaseUrl.endsWith('/rest/v1/')) {
   supabaseUrl = supabaseUrl.slice(0, -9);
 } else if (supabaseUrl.endsWith('/rest/v1')) {
   supabaseUrl = supabaseUrl.slice(0, -8);
 }
 
-const supabaseKey = ((import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '').trim();
+let supabaseKey = rawKeyFromEnv;
+if (!supabaseKey || supabaseKey.includes('MSC2026') || supabaseKey.length < 10) {
+  supabaseKey = defaultKey;
+}
 
 // Ensure the URL is valid HTTP/HTTPS before configuring and connecting
 export const isSupabaseConfigured = Boolean(
@@ -34,22 +48,69 @@ export interface SupabaseConfigStatus {
   teamsTableExists: boolean;
   tournamentsTableExists: boolean;
   error?: string;
+  usedUrl?: string;
 }
 
 // Check database table availability
 export async function checkSupabaseStatus(): Promise<SupabaseConfigStatus> {
+  const currentUrl = supabaseUrl;
+  const currentKey = supabaseKey;
+
   if (!supabase) {
-    return { connected: false, teamsTableExists: false, tournamentsTableExists: false, error: 'Database credentials are not set.' };
+    if (!currentUrl && !currentKey) {
+      return { 
+        connected: false, 
+        teamsTableExists: false, 
+        tournamentsTableExists: false, 
+        error: 'As credenciais do Supabase não estão configuradas nas secrets/ambiente (VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY vazias).',
+        usedUrl: currentUrl
+      };
+    }
+    if (!currentUrl || !currentKey) {
+      return { 
+        connected: false, 
+        teamsTableExists: false, 
+        tournamentsTableExists: false, 
+        error: `Credenciais incompletas: você forneceu apenas uma das chaves. Certifique-se de configurar ambas.`,
+        usedUrl: currentUrl
+      };
+    }
+    if (!currentUrl.startsWith('http://') && !currentUrl.startsWith('https://')) {
+      return { 
+        connected: false, 
+        teamsTableExists: false, 
+        tournamentsTableExists: false, 
+        error: `O formato da URL "${currentUrl}" é inválido. A URL do Supabase deve ser um endereço Web completo, por exemplo: "https://xxxxxxxxxxxxxxxxxxxx.supabase.co"`,
+        usedUrl: currentUrl
+      };
+    }
+    return { 
+      connected: false, 
+      teamsTableExists: false, 
+      tournamentsTableExists: false, 
+      error: 'As credenciais estão preenchidas mas houve uma falha de validação ou inicialização no cliente do Supabase.',
+      usedUrl: currentUrl
+    };
   }
 
   try {
+    console.log('Iniciando verificação de conexão com o Supabase...');
+    
     // Attempt to select 0 rows from msc_teams
     const { error: teamsError } = await supabase
       .from('msc_teams')
       .select('id')
       .limit(0);
 
-    const teamsTableExists = !teamsError || (teamsError.code !== '42P01'); // 42P01 is "relation does not exist"
+    let teamsTableExists = false;
+    if (teamsError) {
+      console.warn('Supabase: Erro recebido ao tentar ler tabela `msc_teams`:', teamsError);
+      // Se o erro NÃO for 42P01 (relation does not exist), o Postgres sabe que a tabela existe (ex: erro de autenticação ou RLS ou restrição)
+      teamsTableExists = (teamsError.code !== '42P01');
+    } else {
+      console.log('Supabase: Tabela `msc_teams` encontrada e pronta!');
+      teamsTableExists = true;
+    }
 
     // Attempt to select 0 rows from msc_tournaments
     const { error: tourneyError } = await supabase
@@ -57,22 +118,42 @@ export async function checkSupabaseStatus(): Promise<SupabaseConfigStatus> {
       .select('id')
       .limit(0);
 
-    const tournamentsTableExists = !tourneyError || (tourneyError.code !== '42P01');
+    let tournamentsTableExists = false;
+    if (tourneyError) {
+      console.warn('Supabase: Erro recebido ao tentar ler tabela `msc_tournaments`:', tourneyError);
+      // Se o erro NÃO for 42P01, a tabela existe fisicamente no banco
+      tournamentsTableExists = (tourneyError.code !== '42P01');
+    } else {
+      console.log('Supabase: Tabela `msc_tournaments` encontrada e pronta!');
+      tournamentsTableExists = true;
+    }
+
+    let errorDetail = undefined;
+    if (teamsError && teamsError.code === '42P01') {
+      errorDetail = 'A tabela `msc_teams` não foi localizada no Supabase.';
+    } else if (tourneyError && tourneyError.code === '42P01') {
+      errorDetail = 'A tabela `msc_tournaments` não foi localizada no Supabase.';
+    } else if (teamsError) {
+      errorDetail = `Erro retornado pelo Supabase (msc_teams): ${teamsError.message || JSON.stringify(teamsError)}`;
+    } else if (tourneyError) {
+      errorDetail = `Erro retornado pelo Supabase (msc_tournaments): ${tourneyError.message || JSON.stringify(tourneyError)}`;
+    }
 
     return {
       connected: true,
       teamsTableExists,
       tournamentsTableExists,
-      error: (teamsError && teamsError.code === '42P01') || (tourneyError && tourneyError.code === '42P01') 
-        ? 'As tabelas msc_teams ou msc_tournaments ainda não existem.'
-        : undefined
+      error: errorDetail,
+      usedUrl: currentUrl
     };
   } catch (err: any) {
+    console.error('Excessão capturada ao testar conexão do Supabase:', err);
     return {
       connected: false,
       teamsTableExists: false,
       tournamentsTableExists: false,
-      error: err?.message || 'Falha ao conectar com o Supabase.'
+      error: err?.message || 'Falha crítica ao tentar conectar ao Supabase.',
+      usedUrl: currentUrl
     };
   }
 }

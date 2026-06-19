@@ -13,6 +13,7 @@ interface AdminPanelModalProps {
     teamsTableExists: boolean;
     tournamentsTableExists: boolean;
     error?: string;
+    usedUrl?: string;
   } | null;
   onRefreshDbStatus: () => Promise<void>;
   isSupabaseConfigured: boolean;
@@ -100,6 +101,11 @@ export default function AdminPanelModal({
 }: AdminPanelModalProps) {
   const [activeTab, setActiveTab] = useState<'teams' | 'matchups' | 'database'>('teams');
   
+  // Auto-refresh connection status on view or tab transition
+  React.useEffect(() => {
+    onRefreshDbStatus();
+  }, [activeTab, onRefreshDbStatus]);
+
   // State for team being edited in the modal
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -370,7 +376,7 @@ export default function AdminPanelModal({
                     Status da Conexão Supabase
                   </h4>
                   <p className="text-[11px] text-neutral-450 leading-relaxed">
-                    Endereço de Conexão: <code className="text-neutral-300">{(import.meta as any).env.VITE_SUPABASE_URL || 'Pendente'}</code>
+                    Endereço de Conexão: <code className="text-neutral-300 font-mono bg-neutral-900 px-1 py-0.5 rounded border border-neutral-800">{dbStatus?.usedUrl || (import.meta as any).env.VITE_SUPABASE_URL || 'Pendente'}</code>
                   </p>
                 </div>
 
@@ -396,6 +402,18 @@ export default function AdminPanelModal({
                   </button>
                 </div>
               </div>
+
+              {dbStatus?.error && (
+                <div className="bg-rose-950/25 border border-rose-500/25 p-3 rounded-lg text-[11px] leading-relaxed text-rose-300 space-y-1">
+                  <p className="font-bold">⚠️ Detalhes/Retorno do Supabase:</p>
+                  <p className="font-mono bg-neutral-950/80 p-2 rounded border border-rose-900/30 overflow-x-auto select-all">
+                    {dbStatus.error}
+                  </p>
+                  <p className="text-neutral-400 text-[10px]">
+                    Dica: Verifique se sua chave anon está correta e se a URL informada não possui espaços extras ou caracteres inválidos.
+                  </p>
+                </div>
+              )}
 
               {/* Database sync status checks */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
