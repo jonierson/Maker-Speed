@@ -16,7 +16,8 @@ import {
   clearAllTeamsFromDb,
   fetchTournamentFromDb,
   saveTournamentToDb,
-  SupabaseConfigStatus
+  SupabaseConfigStatus,
+  supabase
 } from './lib/supabase';
 
 const LOCAL_STORAGE_TEAMS_KEY = 'torneio_carros_teams';
@@ -419,6 +420,9 @@ export default function App() {
                 onClick={() => {
                   setIsAdmin(false);
                   sessionStorage.removeItem('maker_speed_isAdmin');
+                  if (supabase) {
+                    supabase.auth.signOut().catch(err => console.warn('Erro ao deslogar do Supabase:', err));
+                  }
                 }}
                 className="bg-neutral-800 hover:bg-neutral-750 text-neutral-300 border border-neutral-700 font-bold rounded-lg text-xs px-3.5 py-2 flex items-center justify-center gap-1.5 cursor-pointer transition-colors shrink-0"
                 title="Sair da área administrativa"
@@ -595,7 +599,7 @@ export default function App() {
                 </p>
               </div>
 
-              <form onSubmit={(e) => {
+              <form onSubmit={async (e) => {
                 e.preventDefault();
                 const target = e.currentTarget as any;
                 const user = target.username.value;
@@ -605,6 +609,29 @@ export default function App() {
                   sessionStorage.setItem('maker_speed_isAdmin', 'true');
                   setShowLoginModal(false);
                   setLoginError('');
+
+                  // Se Supabase estiver disponível, autentica o usuário em background no Supabase Auth.
+                  // Isso garante que o cabeçalho JWT seja anexado às chamadas do cliente, satisfazendo as políticas RLS seguras.
+                  if (supabase) {
+                    try {
+                      // Tentamos fazer login com um email padrão administrativo e senha
+                      const { error } = await supabase.auth.signInWithPassword({
+                        email: 'admin@ifmaker.com',
+                        password: password
+                      });
+                      if (error) {
+                        console.warn(
+                          'Supabase Auth: Erro ao realizar login administrativo remoto (RLS seguro inativo, mas login local OK):',
+                          error.message,
+                          '\nIsso é normal se você ainda não criou o usuário admin@ifmaker.com no painel Authentication do Supabase.'
+                        );
+                      } else {
+                        console.log('Supabase Auth: Administrador autenticado com sucesso! RLS com restrição rígida ativo no banco.');
+                      }
+                    } catch (err) {
+                      console.warn('Erro ao conectar ao serviço de Auth do Supabase:', err);
+                    }
+                  }
                 } else {
                   setLoginError('Credenciais incorretas!');
                 }
