@@ -6,6 +6,18 @@ import MatchupModal from './components/MatchupModal';
 import AdminPanelModal from './components/AdminPanelModal';
 import { generateTournament, propagateWinners } from './utils/bracketGenerator';
 import { Trophy, RefreshCcw, Activity, Sliders, Lock, Unlock, LogIn, LogOut } from 'lucide-react';
+import {
+  isSupabaseConfigured,
+  checkSupabaseStatus,
+  fetchTeamsFromDb,
+  upsertTeamToDb,
+  deleteTeamFromDb,
+  saveAllTeamsToDb,
+  clearAllTeamsFromDb,
+  fetchTournamentFromDb,
+  saveTournamentToDb,
+  SupabaseConfigStatus
+} from './lib/supabase';
 
 const LOCAL_STORAGE_TEAMS_KEY = 'torneio_carros_teams';
 const LOCAL_STORAGE_TOURNAMENT_KEY = 'torneio_carros_active';
@@ -21,60 +33,144 @@ export default function App() {
   });
   const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
   const [loginError, setLoginError] = useState<string>('');
+  
+  // Supabase Status
+  const [dbStatus, setDbStatus] = useState<SupabaseConfigStatus | null>(null);
+  const [isLoadingDb, setIsLoadingDb] = useState(false);
 
-  // Load from localStorage on init
+  const handleVerifyDbStatus = async () => {
+    if (isSupabaseConfigured) {
+      try {
+        const status = await checkSupabaseStatus();
+        setDbStatus(status);
+      } catch (err) {
+        console.error('Failed to verify Supabase status:', err);
+      }
+    }
+  };
+
+  // Load from local or Supabase on init
   useEffect(() => {
-    const savedTeams = localStorage.getItem(LOCAL_STORAGE_TEAMS_KEY);
-    if (savedTeams) {
-      try {
-        setTeams(JSON.parse(savedTeams));
-      } catch (e) {
-        console.error('Error parsing teams from storage', e);
-      }
-    }
+    const loadInitialData = async () => {
+      setIsLoadingDb(true);
 
-    const savedTournament = localStorage.getItem(LOCAL_STORAGE_TOURNAMENT_KEY);
-    if (savedTournament) {
-      try {
-        setActiveTournament(JSON.parse(savedTournament));
-      } catch (e) {
-        console.error('Error parsing tournament from storage', e);
+      // Instant interactive load from cache (localStorage)
+      const savedTeams = localStorage.getItem(LOCAL_STORAGE_TEAMS_KEY);
+      if (savedTeams) {
+        try {
+          setTeams(JSON.parse(savedTeams));
+        } catch (e) {
+          console.error('Error parsing teams from storage', e);
+        }
       }
-    }
+
+      const savedTournament = localStorage.getItem(LOCAL_STORAGE_TOURNAMENT_KEY);
+      if (savedTournament) {
+        try {
+          setActiveTournament(JSON.parse(savedTournament));
+        } catch (e) {
+          console.error('Error parsing tournament from storage', e);
+        }
+      }
+
+      // Sync fresh online records if online & configured
+      if (isSupabaseConfigured) {
+        try {
+          const status = await checkSupabaseStatus();
+          setDbStatus(status);
+
+          if (status.connected && status.teamsTableExists) {
+            const dbTeams = await fetchTeamsFromDb();
+            setTeams(dbTeams);
+            localStorage.setItem(LOCAL_STORAGE_TEAMS_KEY, JSON.stringify(dbTeams));
+          }
+
+          if (status.connected && status.tournamentsTableExists) {
+            const dbTourney = await fetchTournamentFromDb();
+            setActiveTournament(dbTourney);
+            if (dbTourney) {
+              localStorage.setItem(LOCAL_STORAGE_TOURNAMENT_KEY, JSON.stringify(dbTourney));
+            } else {
+              localStorage.removeItem(LOCAL_STORAGE_TOURNAMENT_KEY);
+            }
+          }
+        } catch (err) {
+          console.error('Error fetching data from Supabase on startup:', err);
+        }
+      }
+      setIsLoadingDb(false);
+    };
+
+    loadInitialData();
   }, []);
 
   // Save state helpers
-  const saveTeams = (newTeams: Team[]) => {
+  const saveTeamsLocalOnly = (newTeams: Team[]) => {
     setTeams(newTeams);
     localStorage.setItem(LOCAL_STORAGE_TEAMS_KEY, JSON.stringify(newTeams));
   };
 
-  const saveTournament = (tournament: Tournament | null) => {
+  const saveTournament = async (tournament: Tournament | null) => {
     setActiveTournament(tournament);
     if (tournament) {
       localStorage.setItem(LOCAL_STORAGE_TOURNAMENT_KEY, JSON.stringify(tournament));
     } else {
       localStorage.removeItem(LOCAL_STORAGE_TOURNAMENT_KEY);
     }
+
+    if (isSupabaseConfigured && dbStatus?.tournamentsTableExists) {
+      try {
+        await saveTournamentToDb(tournament);
+      } catch (err) {
+        console.error('Error saving tournament to Supabase:', err);
+      }
+    }
   };
 
   // Add, remove, update team handlers
-  const handleAddTeam = (teamData: Omit<Team, 'id' | 'registeredAt'>) => {
+  const handleAddTeam = async (teamData: Omit<Team, 'id' | 'registeredAt'>) => {
     const newTeam: Team = {
       ...teamData,
       id: `team_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
       registeredAt: new Date().toISOString(),
     };
-    saveTeams([...teams, newTeam]);
+    const updated = [...teams, newTeam];
+    saveTeamsLocalOnly(updated);
+
+    if (isSupabaseConfigured && dbStatus?.teamsTableExists) {
+      try {
+        await upsertTeamToDb(newTeam);
+      } catch (err) {
+        console.error('Failed to sync team to Supabase:', err);
+      }
+    }
   };
 
-  const handleRemoveTeam = (id: string) => {
-    saveTeams(teams.filter(t => t.id !== id));
+  const handleRemoveTeam = async (id: string) => {
+    const remaining = teams.filter(t => t.id !== id);
+    saveTeamsLocalOnly(remaining);
+
+    if (isSupabaseConfigured && dbStatus?.teamsTableExists) {
+      try {
+        await deleteTeamFromDb(id);
+      } catch (err) {
+        console.error('Failed to delete team from Supabase:', err);
+      }
+    }
   };
 
-  const handleUpdateTeam = (id: string, updatedData: Partial<Team>) => {
+  const handleUpdateTeam = async (id: string, updatedData: Partial<Team>) => {
     const updatedTeamList = teams.map(t => t.id === id ? { ...t, ...updatedData } : t);
-    saveTeams(updatedTeamList);
+    saveTeamsLocalOnly(updatedTeamList);
+
+    const updatedTeam = updatedTeamList.find(t => t.id === id);
+    if (updatedTeam && isSupabaseConfigured && dbStatus?.teamsTableExists) {
+      try {
+        await upsertTeamToDb(updatedTeam);
+      } catch (err) {
+        console.error('Failed to update team in Supabase:', err);
+      }
+    }
     
     if (activeTournament) {
       const updatedTourneyTeams = activeTournament.teams.map(t => t.id === id ? { ...t, ...updatedData } : t);
@@ -93,7 +189,7 @@ export default function App() {
           team2Placeholder: t2Placeholder
         };
       });
-      saveTournament({
+      await saveTournament({
         ...activeTournament,
         teams: updatedTourneyTeams,
         matchups: updatedMatchups
@@ -101,7 +197,7 @@ export default function App() {
     }
   };
 
-  const handleAddSampleTeams = () => {
+  const handleAddSampleTeams = async () => {
     // Generate a list of 16 highly styled sample teams for testing up to 64!
     const names = [
       'Scuderia Carbono 🇧🇷', 'Viper Drift 🇯🇵', 'Gama Turbo 🇩🇪', 'Apex Predator 🇺🇸',
@@ -139,28 +235,45 @@ export default function App() {
 
     // Append up to 64 limit
     const merged = [...teams];
+    const onlyNewSamples: Team[] = [];
     newSamples.forEach(sample => {
       if (merged.length < 64 && !merged.some(t => t.name.toLowerCase() === sample.name.toLowerCase())) {
         merged.push(sample);
+        onlyNewSamples.push(sample);
       }
     });
 
-    saveTeams(merged);
+    saveTeamsLocalOnly(merged);
+
+    if (isSupabaseConfigured && dbStatus?.teamsTableExists && onlyNewSamples.length > 0) {
+      try {
+        await saveAllTeamsToDb(onlyNewSamples);
+      } catch (err) {
+        console.error('Failed to bulk sync sample teams to Supabase:', err);
+      }
+    }
   };
 
-  const handleClearTeams = () => {
-    saveTeams([]);
+  const handleClearTeams = async () => {
+    saveTeamsLocalOnly([]);
+    if (isSupabaseConfigured && dbStatus?.teamsTableExists) {
+      try {
+        await clearAllTeamsFromDb();
+      } catch (err) {
+        console.error('Failed to clear teams in Supabase:', err);
+      }
+    }
   };
 
   // Start tournament handler
-  const handleStartTournament = (shuffle: boolean) => {
+  const handleStartTournament = async (shuffle: boolean) => {
     if (teams.length < 4) return;
     const tournament = generateTournament(teams, shuffle);
-    saveTournament(tournament);
+    await saveTournament(tournament);
   };
 
   // Score saver
-  const handleSaveMatchupScore = (
+  const handleSaveMatchupScore = async (
     matchupId: string,
     raceWinners: (string | null)[],
     w1Count: number,
@@ -210,7 +323,7 @@ export default function App() {
       status: newStatus,
     };
 
-    saveTournament(updatedTournament);
+    await saveTournament(updatedTournament);
   };
 
   // Reset current tournament and return to team dashboard (show modal first)
@@ -218,8 +331,8 @@ export default function App() {
     setShowResetConfirm(true);
   };
 
-  const confirmResetTournament = () => {
-    saveTournament(null);
+  const confirmResetTournament = async () => {
+    await saveTournament(null);
     setSelectedMatchupId(null);
     setShowResetConfirm(false);
   };
@@ -266,36 +379,36 @@ export default function App() {
             )}
 
             {activeTournament && (
+              <div className="sm:text-right px-2 hidden sm:block">
+                <p className="text-[9px] uppercase font-bold tracking-wider text-neutral-400 flex items-center sm:justify-end gap-1">
+                  <Activity className="h-3 w-3 text-orange-500" /> Progresso
+                </p>
+                <p className="text-xs font-semibold text-white mt-0.5">
+                  {completedMatchesCount}/{totalMatchesCount} Duelos ({Math.round((completedMatchesCount / (totalMatchesCount || 1)) * 100)}%)
+                </p>
+              </div>
+            )}
+
+            {isAdmin && (
               <>
-                <div className="sm:text-right px-2 hidden sm:block">
-                  <p className="text-[9px] uppercase font-bold tracking-wider text-neutral-400 flex items-center sm:justify-end gap-1">
-                    <Activity className="h-3 w-3 text-orange-500" /> Progresso
-                  </p>
-                  <p className="text-xs font-semibold text-white mt-0.5">
-                    {completedMatchesCount}/{totalMatchesCount} Duelos ({Math.round((completedMatchesCount / (totalMatchesCount || 1)) * 100)}%)
-                  </p>
-                </div>
+                <button
+                  onClick={() => setShowAdminModal(true)}
+                  className="bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-lg text-xs px-3.5 py-2 flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-md shadow-orange-600/10 hover:shadow-orange-600/25 shrink-0"
+                  title="Painel Administrativo"
+                >
+                  <Sliders className="h-3.5 w-3.5" />
+                  <span>Painel do Admin</span>
+                </button>
 
-                {isAdmin && (
-                  <>
-                    <button
-                      onClick={() => setShowAdminModal(true)}
-                      className="bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-lg text-xs px-3.5 py-2 flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-md shadow-orange-600/10 hover:shadow-orange-600/25 shrink-0"
-                      title="Painel Administrativo"
-                    >
-                      <Sliders className="h-3.5 w-3.5" />
-                      <span>Painel do Admin</span>
-                    </button>
-
-                    <button
-                      onClick={handleResetTournament}
-                      className="bg-neutral-800 hover:bg-neutral-750 text-neutral-200 border border-neutral-700 font-semibold rounded-lg text-xs px-3 py-2 flex items-center justify-center gap-1.5 cursor-pointer transition-colors shrink-0"
-                      title="Reiniciar Torneio"
-                    >
-                      <RefreshCcw className="h-3.5 w-3.5" />
-                      <span>Reiniciar</span>
-                    </button>
-                  </>
+                {activeTournament && (
+                  <button
+                    onClick={handleResetTournament}
+                    className="bg-neutral-800 hover:bg-neutral-750 text-neutral-200 border border-neutral-700 font-semibold rounded-lg text-xs px-3  py-2 flex items-center justify-center gap-1.5 cursor-pointer transition-colors shrink-0"
+                    title="Reiniciar Torneio"
+                  >
+                    <RefreshCcw className="h-3.5 w-3.5" />
+                    <span>Reiniciar</span>
+                  </button>
                 )}
               </>
             )}
@@ -407,9 +520,18 @@ export default function App() {
       )}
 
       {/* Primary Admin Control Panel Modal */}
-      {showAdminModal && activeTournament && (
+      {showAdminModal && (
         <AdminPanelModal
-          tournament={activeTournament}
+          tournament={activeTournament || {
+            id: 'dummy',
+            status: 'SETUP',
+            teams: teams,
+            groupA_Teams: [],
+            groupB_Teams: [],
+            matchups: [],
+            championId: null,
+            createdAt: new Date().toISOString()
+          }}
           teams={teams}
           onUpdateTeam={handleUpdateTeam}
           onSelectMatchup={(matchId) => {
@@ -417,6 +539,9 @@ export default function App() {
             setSelectedMatchupId(matchId);
           }}
           onClose={() => setShowAdminModal(false)}
+          dbStatus={dbStatus}
+          onRefreshDbStatus={handleVerifyDbStatus}
+          isSupabaseConfigured={isSupabaseConfigured}
         />
       )}
 
