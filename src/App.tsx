@@ -152,6 +152,11 @@ export default function App() {
     saveTeams([]);
   };
 
+  const handleImportBackup = (backupData: { teams: Team[]; activeTournament: Tournament | null }) => {
+    saveTeams(backupData.teams);
+    saveTournament(backupData.activeTournament);
+  };
+
   // Start tournament handler
   const handleStartTournament = (shuffle: boolean) => {
     if (teams.length < 4) return;
@@ -266,36 +271,36 @@ export default function App() {
             )}
 
             {activeTournament && (
+              <div className="sm:text-right px-2 hidden sm:block">
+                <p className="text-[9px] uppercase font-bold tracking-wider text-neutral-400 flex items-center sm:justify-end gap-1">
+                  <Activity className="h-3 w-3 text-orange-500" /> Progresso
+                </p>
+                <p className="text-xs font-semibold text-white mt-0.5">
+                  {completedMatchesCount}/{totalMatchesCount} Duelos ({Math.round((completedMatchesCount / (totalMatchesCount || 1)) * 100)}%)
+                </p>
+              </div>
+            )}
+
+            {isAdmin && (
               <>
-                <div className="sm:text-right px-2 hidden sm:block">
-                  <p className="text-[9px] uppercase font-bold tracking-wider text-neutral-400 flex items-center sm:justify-end gap-1">
-                    <Activity className="h-3 w-3 text-orange-500" /> Progresso
-                  </p>
-                  <p className="text-xs font-semibold text-white mt-0.5">
-                    {completedMatchesCount}/{totalMatchesCount} Duelos ({Math.round((completedMatchesCount / (totalMatchesCount || 1)) * 100)}%)
-                  </p>
-                </div>
+                <button
+                  onClick={() => setShowAdminModal(true)}
+                  className="bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-lg text-xs px-3.5 py-2 flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-md shadow-orange-600/10 hover:shadow-orange-600/25 shrink-0"
+                  title="Painel Administrativo"
+                >
+                  <Sliders className="h-3.5 w-3.5" />
+                  <span>Painel do Admin</span>
+                </button>
 
-                {isAdmin && (
-                  <>
-                    <button
-                      onClick={() => setShowAdminModal(true)}
-                      className="bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-lg text-xs px-3.5 py-2 flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-md shadow-orange-600/10 hover:shadow-orange-600/25 shrink-0"
-                      title="Painel Administrativo"
-                    >
-                      <Sliders className="h-3.5 w-3.5" />
-                      <span>Painel do Admin</span>
-                    </button>
-
-                    <button
-                      onClick={handleResetTournament}
-                      className="bg-neutral-800 hover:bg-neutral-750 text-neutral-200 border border-neutral-700 font-semibold rounded-lg text-xs px-3 py-2 flex items-center justify-center gap-1.5 cursor-pointer transition-colors shrink-0"
-                      title="Reiniciar Torneio"
-                    >
-                      <RefreshCcw className="h-3.5 w-3.5" />
-                      <span>Reiniciar</span>
-                    </button>
-                  </>
+                {activeTournament && (
+                  <button
+                    onClick={handleResetTournament}
+                    className="bg-neutral-800 hover:bg-neutral-750 text-neutral-200 border border-neutral-700 font-semibold rounded-lg text-xs px-3 py-2 flex items-center justify-center gap-1.5 cursor-pointer transition-colors shrink-0"
+                    title="Reiniciar Torneio"
+                  >
+                    <RefreshCcw className="h-3.5 w-3.5" />
+                    <span>Reiniciar</span>
+                  </button>
                 )}
               </>
             )}
@@ -407,7 +412,7 @@ export default function App() {
       )}
 
       {/* Primary Admin Control Panel Modal */}
-      {showAdminModal && activeTournament && (
+      {showAdminModal && (
         <AdminPanelModal
           tournament={activeTournament}
           teams={teams}
@@ -416,6 +421,7 @@ export default function App() {
             setShowAdminModal(false);
             setSelectedMatchupId(matchId);
           }}
+          onImportBackup={handleImportBackup}
           onClose={() => setShowAdminModal(false)}
         />
       )}
