@@ -34,7 +34,7 @@ export default function BracketPanel({
         <div className="flex items-center justify-between p-2.5 bg-green-950/20 rounded-md border border-green-900/40">
           <div className="flex items-center gap-2 min-w-0">
             <div className="h-2 w-2 rounded-full" style={{ backgroundColor: team?.color || '#22C55E' }} />
-            <div className="text-xs font-bold text-white truncate">{team?.name}</div>
+            <div className="text-xs font-bold text-white truncate team-name">{team?.name}</div>
           </div>
           <div className="text-[10px] font-bold text-green-400 bg-green-950 px-1.5 py-0.5 rounded border border-green-900/60 uppercase">
             Passagem Automática (BYE)
@@ -66,14 +66,18 @@ export default function BracketPanel({
       >
         <div className="flex items-center gap-2 min-w-0">
           <div className="h-2.5 w-2.5 rounded-full shadow-sm" style={{ backgroundColor: team.color }} />
-          <div className="text-xs truncate">
-            {team.name}
+          <div className="text-xs truncate flex flex-col justify-center">
+            <span className={`font-bold block team-name ${isWinner ? 'team-winner-text' : 'team-loser-text'}`}>{team.name}</span>
             <span className="block text-[9px] text-neutral-500 font-normal truncate">
               👥 {team.members}
             </span>
           </div>
         </div>
-        <span className={`text-xs font-semibold font-mono px-1.5 rounded ${isWinner ? 'text-green-400 bg-green-950/50' : 'text-neutral-500'}`}>
+        <span className={`text-xs font-semibold font-mono px-1.5 rounded ${
+          isWinner 
+            ? 'text-green-400 bg-green-950/50 team-winner-score' 
+            : 'text-neutral-500 team-loser-score'
+        }`}>
           {score}
         </span>
       </div>
@@ -153,7 +157,7 @@ export default function BracketPanel({
                 onClick={() => onSelectMatchup(matchup.id)}
                 className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   isCompleted 
-                    ? 'bg-neutral-800 text-neutral-300 hover:bg-neutral-750' 
+                    ? 'bg-neutral-800 text-neutral-300 hover:bg-neutral-750 btn-editar-resultado' 
                     : 'bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white shadow-md'
                 }`}
               >

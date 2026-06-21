@@ -123,3 +123,27 @@
 [data-theme="light"] .text-neutral-500 {
   color: rgb(100, 116, 139) !important;
 }
+
+/* Light Theme overrides for match list, team names, score, and actions */
+[data-theme="light"] .team-winner-text {
+  color: #dc2626 !important;
+}
+
+[data-theme="light"] .team-loser-text {
+  color: #000000 !important;
+}
+
+[data-theme="light"] .team-winner-score {
+  color: #dc2626 !important;
+  background-color: #fca5a530 !important;
+}
+
+[data-theme="light"] .team-loser-score {
+  color: #64748b !important;
+}
+
+[data-theme="light"] .btn-editar-resultado,
+[data-theme="light"] .btn-editar-resultado * {
+  color: #000000 !important;
+}
+
