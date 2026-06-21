@@ -5,7 +5,7 @@ import BracketPanel from './components/BracketPanel';
 import MatchupModal from './components/MatchupModal';
 import AdminPanelModal from './components/AdminPanelModal';
 import { generateTournament, propagateWinners } from './utils/bracketGenerator';
-import { Trophy, RefreshCcw, Activity, Sliders, Lock, Unlock, LogIn, LogOut } from 'lucide-react';
+import { Trophy, RefreshCcw, Activity, Sliders, Lock, Unlock, LogIn, LogOut, Sun, Moon } from 'lucide-react';
 import {
   isSupabaseConfigured,
   checkSupabaseStatus,
@@ -34,6 +34,21 @@ export default function App() {
   });
   const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
   const [loginError, setLoginError] = useState<string>('');
+  
+  // Theme Switching
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    const saved = localStorage.getItem('torneio_carros_theme');
+    return (saved === 'light' || saved === 'dark') ? saved : 'dark';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('torneio_carros_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
   
   // Supabase Status
   const [dbStatus, setDbStatus] = useState<SupabaseConfigStatus | null>(null);
@@ -366,6 +381,25 @@ export default function App() {
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto sm:justify-end flex-wrap">
+            {/* Theme Toggle Button */}
+            <button
+              onClick={toggleTheme}
+              className="bg-neutral-950/60 hover:bg-neutral-950 border border-neutral-800 text-neutral-300 hover:text-white p-2 rounded-lg cursor-pointer transition-all flex items-center justify-center gap-2 text-xs font-semibold hover:scale-102 active:scale-98 shadow-sm"
+              title={theme === 'dark' ? 'Mudar para Tema Claro' : 'Mudar para Tema Escuro'}
+            >
+              {theme === 'dark' ? (
+                <>
+                  <Sun className="h-4 w-4 text-amber-500" />
+                  <span className="sm:hidden lg:inline text-neutral-300 font-medium">Tema Claro</span>
+                </>
+              ) : (
+                <>
+                  <Moon className="h-4 w-4 text-violet-400" />
+                  <span className="sm:hidden lg:inline text-neutral-300 font-medium">Tema Escuro</span>
+                </>
+              )}
+            </button>
+
             {/* Mode Indicator Pill */}
             {isAdmin ? (
               <div className="bg-orange-950/40 border border-orange-500/30 px-3 py-1.5 rounded-lg flex items-center justify-center gap-2 text-xs text-orange-400 font-bold">

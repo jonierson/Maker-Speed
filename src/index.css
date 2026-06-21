@@ -1,1 +1,122 @@
 @import "tailwindcss";
+
+:root, [data-theme="dark"] {
+  --bg-main: #0a0a0a;         /* neutral-950 */
+  --bg-card: #141414;         /* neutral-900 */
+  --border-color: #1f1f1f;    /* neutral-800 */
+  --text-primary: #f5f5f5;    /* neutral-100 */
+  --text-secondary: #a3a3a3;  /* neutral-400 */
+  --text-muted: #737373;      /* neutral-500 */
+  --input-bg: #0d0d0d;        /* neutral-950 */
+  --bg-item: #111111;
+}
+
+/* Light Mode Overrides */
+[data-theme="light"] {
+  --bg-main: #f8fafc;         /* Slate 50 */
+  --bg-card: #ffffff;         /* Pure white cards */
+  --border-color: #cbd5e1;    /* Slate 300 */
+  --text-primary: #0f172a;    /* Slate 900 */
+  --text-secondary: #475569;  /* Slate 600 */
+  --text-muted: #64748b;      /* Slate 500 */
+  --input-bg: #f1f5f9;        /* Slate 100 */
+  --bg-item: #f8fafc;
+}
+
+@theme {
+  --color-neutral-950: var(--bg-main);
+  --color-neutral-900: var(--bg-card);
+  --color-neutral-850: var(--bg-item);
+  --color-neutral-800: var(--border-color);
+  --color-neutral-750: var(--bg-item);
+  --color-neutral-700: var(--border-color);
+  --color-neutral-100: var(--text-primary);
+  --color-neutral-200: var(--text-primary);
+  --color-neutral-300: var(--text-secondary);
+  --color-neutral-400: var(--text-secondary);
+  --color-neutral-500: var(--text-muted);
+  --color-neutral-600: var(--text-muted);
+}
+
+/* Light theme overrides to ensure typography contrast is pristine */
+[data-theme="light"] h1,
+[data-theme="light"] h2,
+[data-theme="light"] h3,
+[data-theme="light"] h4,
+[data-theme="light"] h5,
+[data-theme="light"] h6,
+[data-theme="light"] .text-white {
+  color: #0f172a !important;
+}
+
+/* Let's make sure things inside dynamic status badges, buttons, and custom background lists remain white */
+[data-theme="light"] button .text-white,
+[data-theme="light"] button.text-white,
+[data-theme="light"] .bg-orange-600,
+[data-theme="light"] .bg-orange-600 *,
+[data-theme="light"] .bg-orange-500,
+[data-theme="light"] .bg-orange-500 *,
+[data-theme="light"] .bg-amber-600,
+[data-theme="light"] .bg-amber-600 *,
+[data-theme="light"] .bg-cyan-600,
+[data-theme="light"] .bg-cyan-600 *,
+[data-theme="light"] .bg-purple-600,
+[data-theme="light"] .bg-purple-600 *,
+[data-theme="light"] .bg-emerald-600,
+[data-theme="light"] .bg-emerald-600 *,
+[data-theme="light"] .bg-red-600,
+[data-theme="light"] .bg-red-600 *,
+[data-theme="light"] .bg-green-650,
+[data-theme="light"] .bg-green-600,
+[data-theme="light"] .bg-green-600 *,
+[data-theme="light"] .bg-neutral-800,
+[data-theme="light"] .bg-neutral-800 *,
+[data-theme="light"] .bg-neutral-850,
+[data-theme="light"] .bg-neutral-850 * {
+  color: #ffffff !important;
+}
+
+/* Form controls styling under light theme helper */
+[data-theme="light"] input::placeholder {
+  color: #64748b !important;
+}
+
+/* Custom styling for status tables and cards */
+[data-theme="light"] .bg-green-950\/20 {
+  background-color: rgb(240, 253, 244) !important;
+}
+[data-theme="light"] .border-green-900\/40 {
+  border-color: rgb(134, 239, 172) !important;
+}
+[data-theme="light"] .text-green-400 {
+  color: rgb(21, 128, 61) !important;
+}
+[data-theme="light"] .bg-green-950 {
+  background-color: rgb(220, 252, 231) !important;
+  color: rgb(21, 128, 61) !important;
+}
+[data-theme="light"] .border-green-900\/60 {
+  border-color: rgb(74, 222, 128) !important;
+}
+
+/* Red alerts / status */
+[data-theme="light"] .bg-red-950\/40 {
+  background-color: rgb(254, 242, 242) !important;
+}
+[data-theme="light"] .border-red-900\/50 {
+  border-color: rgb(252, 165, 165) !important;
+}
+[data-theme="light"] .text-red-400 {
+  color: rgb(185, 28, 28) !important;
+}
+[data-theme="light"] .bg-red-950 {
+  background-color: rgb(254, 226, 226) !important;
+}
+
+/* Neutral dashed inputs and placeholders */
+[data-theme="light"] .bg-neutral-950\/40 {
+  background-color: rgb(248, 250, 252) !important;
+}
+[data-theme="light"] .text-neutral-500 {
+  color: rgb(100, 116, 139) !important;
+}
