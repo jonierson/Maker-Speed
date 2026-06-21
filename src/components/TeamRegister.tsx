@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Team } from '../types';
-import { Plus, Trash2, Trophy, Shuffle, Zap, Pencil, X, ShieldAlert } from 'lucide-react';
+import { Plus, Trash2, Trophy, Shuffle, Zap, Pencil, X, ShieldAlert, Search } from 'lucide-react';
 
 interface TeamRegisterProps {
   teams: Team[];
@@ -40,6 +40,16 @@ export default function TeamRegister({
   const [members, setMembers] = useState('');
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredTeams = teams.filter((team) => {
+    const searchLow = searchTerm.toLowerCase().trim();
+    if (!searchLow) return true;
+    return (
+      team.name.toLowerCase().includes(searchLow) ||
+      (team.members && team.members.toLowerCase().includes(searchLow))
+    );
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -219,6 +229,31 @@ export default function TeamRegister({
             )}
           </div>
 
+          {/* Real-time search filter */}
+          {teams.length > 0 && (
+            <div className="mb-4 relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-neutral-500" />
+              </div>
+              <input
+                type="text"
+                placeholder="Buscar equipe por nome ou integrantes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-neutral-950 border border-neutral-850 text-white rounded-lg pl-9 pr-8 py-2.5 text-xs focus:border-orange-500 focus:outline-none transition-colors placeholder:text-neutral-500"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-neutral-500 hover:text-white cursor-pointer"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          )}
+
           {teams.length === 0 ? (
             <div className="border border-dashed border-neutral-800 rounded-xl p-12 text-center flex flex-col items-center justify-center">
               <span className="text-4xl mb-3">🏁</span>
@@ -227,9 +262,17 @@ export default function TeamRegister({
                 Nenhum veículo competitivo foi cadastrado na arena do campeonato ainda. Aguardando o administrador registrar as escuderias oficiais.
               </p>
             </div>
+          ) : filteredTeams.length === 0 ? (
+            <div className="border border-dashed border-neutral-800 rounded-xl p-12 text-center flex flex-col items-center justify-center">
+              <span className="text-3xl mb-2">🔍</span>
+              <p className="text-neutral-400 text-sm font-semibold">Nenhuma equipe encontrada</p>
+              <p className="text-neutral-500 text-xs mt-1">
+                Não encontramos correspondências para a busca "{searchTerm}".
+              </p>
+            </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[440px] overflow-y-auto pr-1">
-              {teams.map((team) => {
+              {filteredTeams.map((team) => {
                 const isThisEditing = editingTeamId === team.id;
                 return (
                   <div

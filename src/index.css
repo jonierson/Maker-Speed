@@ -44,12 +44,15 @@
 [data-theme="light"] h3,
 [data-theme="light"] h4,
 [data-theme="light"] h5,
-[data-theme="light"] h6,
-[data-theme="light"] .text-white {
+[data-theme="light"] h6 {
   color: #0f172a !important;
 }
 
-/* Let's make sure things inside dynamic status badges, buttons, and custom background lists remain white */
+[data-theme="light"] .text-white {
+  color: #dc2626 !important;
+}
+
+/* Let's make sure things inside dynamic status badges, buttons, and custom background lists remain white for maximum visibility on colored backgrounds */
 [data-theme="light"] button .text-white,
 [data-theme="light"] button.text-white,
 [data-theme="light"] .bg-orange-600,

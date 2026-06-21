@@ -5,7 +5,8 @@ import BracketPanel from './components/BracketPanel';
 import MatchupModal from './components/MatchupModal';
 import AdminPanelModal from './components/AdminPanelModal';
 import { generateTournament, propagateWinners } from './utils/bracketGenerator';
-import { Trophy, RefreshCcw, Activity, Sliders, Lock, Unlock, LogIn, LogOut, Sun, Moon } from 'lucide-react';
+import { Trophy, RefreshCcw, Activity, Sliders, Lock, Unlock, LogIn, LogOut, Sun, Moon, CheckCircle2, AlertTriangle, Info, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   isSupabaseConfigured,
   checkSupabaseStatus,
@@ -23,6 +24,12 @@ import {
 const LOCAL_STORAGE_TEAMS_KEY = 'torneio_carros_teams';
 const LOCAL_STORAGE_TOURNAMENT_KEY = 'torneio_carros_active';
 
+export interface Toast {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info';
+}
+
 export default function App() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [activeTournament, setActiveTournament] = useState<Tournament | null>(null);
@@ -34,6 +41,21 @@ export default function App() {
   });
   const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
   const [loginError, setLoginError] = useState<string>('');
+
+  // Toast State
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      removeToast(id);
+    }, 4000);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
   
   // Theme Switching
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -152,6 +174,7 @@ export default function App() {
     };
     const updated = [...teams, newTeam];
     saveTeamsLocalOnly(updated);
+    showToast(`Equipe "${newTeam.name}" cadastrada com sucesso!`, 'success');
 
     if (isSupabaseConfigured && dbStatus?.teamsTableExists) {
       try {
@@ -163,8 +186,10 @@ export default function App() {
   };
 
   const handleRemoveTeam = async (id: string) => {
+    const teamToRemove = teams.find(t => t.id === id);
     const remaining = teams.filter(t => t.id !== id);
     saveTeamsLocalOnly(remaining);
+    showToast(`Equipe ${teamToRemove ? `"${teamToRemove.name}"` : ''} removida com sucesso.`, 'info');
 
     if (isSupabaseConfigured && dbStatus?.teamsTableExists) {
       try {
@@ -178,6 +203,7 @@ export default function App() {
   const handleUpdateTeam = async (id: string, updatedData: Partial<Team>) => {
     const updatedTeamList = teams.map(t => t.id === id ? { ...t, ...updatedData } : t);
     saveTeamsLocalOnly(updatedTeamList);
+    showToast('Dados da equipe atualizados com sucesso.', 'success');
 
     const updatedTeam = updatedTeamList.find(t => t.id === id);
     if (updatedTeam && isSupabaseConfigured && dbStatus?.teamsTableExists) {
@@ -260,6 +286,7 @@ export default function App() {
     });
 
     saveTeamsLocalOnly(merged);
+    showToast(`${onlyNewSamples.length} equipes de demonstração importadas!`, 'success');
 
     if (isSupabaseConfigured && dbStatus?.teamsTableExists && onlyNewSamples.length > 0) {
       try {
@@ -272,6 +299,7 @@ export default function App() {
 
   const handleClearTeams = async () => {
     saveTeamsLocalOnly([]);
+    showToast('Lista de equipes limpa com sucesso.', 'info');
     if (isSupabaseConfigured && dbStatus?.teamsTableExists) {
       try {
         await clearAllTeamsFromDb();
@@ -286,6 +314,7 @@ export default function App() {
     if (teams.length < 4) return;
     const tournament = generateTournament(teams, shuffle);
     await saveTournament(tournament);
+    showToast('Chaveamento gerado! Campeonato iniciado.', 'success');
   };
 
   // Score saver
@@ -340,6 +369,18 @@ export default function App() {
     };
 
     await saveTournament(updatedTournament);
+
+    // Show beautiful toast notification
+    const currentM = activeTournament.matchups.find(m => m.id === matchupId);
+    if (currentM) {
+      const t1 = teams.find(t => t.id === currentM.team1Id);
+      const t2 = teams.find(t => t.id === currentM.team2Id);
+      const name1 = t1?.name || currentM.team1Placeholder || 'Equipe A';
+      const name2 = t2?.name || currentM.team2Placeholder || 'Equipe B';
+      showToast(`Placar de ${name1} x ${name2} registrado com sucesso!`, 'success');
+    } else {
+      showToast('Resultado de rodada registrado com sucesso!', 'success');
+    }
   };
 
   // Reset current tournament and return to team dashboard (show modal first)
@@ -351,6 +392,7 @@ export default function App() {
     await saveTournament(null);
     setSelectedMatchupId(null);
     setShowResetConfirm(false);
+    showToast('O campeonato foi reiniciado e as chaves foram limpas.', 'info');
   };
 
   // Setup refs
@@ -374,7 +416,11 @@ export default function App() {
             <span className="text-3xl p-1.5 bg-neutral-950 rounded-xl border border-neutral-800 shadow-md">⚡</span>
             <div>
               <h1 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight flex items-center gap-2">
-                Maker Speed Challenge <span className="text-orange-500 font-normal text-xs sm:text-sm bg-orange-950/40 border border-orange-900/40 px-2 py-0.5 rounded uppercase tracking-wider">IFMAKER-ARAGUAÍNA</span>
+                Maker Speed Challenge <span className={`font-semibold text-xs sm:text-sm px-2 py-0.5 rounded uppercase tracking-wider border ${
+                  theme === 'dark'
+                    ? 'text-orange-500 bg-orange-950/40 border-orange-900/40'
+                    : 'text-red-650 bg-red-100 border-red-300 font-bold'
+                }`}>IFMAKER-ARAGUAÍNA</span>
               </h1>
               <p className="text-xs text-neutral-400 mt-0.5">Competição de veículos movidos exclusivamente pela força da gravidade.</p>
             </div>
@@ -402,13 +448,21 @@ export default function App() {
 
             {/* Mode Indicator Pill */}
             {isAdmin ? (
-              <div className="bg-orange-950/40 border border-orange-500/30 px-3 py-1.5 rounded-lg flex items-center justify-center gap-2 text-xs text-orange-400 font-bold">
+              <div className={`px-3 py-1.5 rounded-lg flex items-center justify-center gap-2 text-xs font-bold border ${
+                theme === 'dark'
+                  ? 'bg-orange-950/40 border-orange-500/30 text-orange-400'
+                  : 'bg-orange-100 border-orange-200 text-orange-700 shadow-sm'
+              }`}>
                 <span className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse" />
                 <span>👑 Administrador</span>
               </div>
             ) : (
-              <div className="bg-cyan-950/30 border border-cyan-800/20 px-3 py-1.5 rounded-lg flex items-center justify-center gap-2 text-xs text-cyan-400 font-medium font-mono">
-                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" style={{ animationDuration: '3s' }} />
+              <div className={`px-3 py-1.5 rounded-lg flex items-center justify-center gap-2 text-xs font-semibold font-mono border ${
+                theme === 'dark'
+                  ? 'bg-cyan-950/30 border-cyan-800/20 text-cyan-400'
+                  : 'bg-cyan-100 border-cyan-200 text-cyan-700 shadow-sm font-bold'
+              }`}>
+                <span className={`w-2 h-2 rounded-full animate-ping ${theme === 'dark' ? 'bg-cyan-400' : 'bg-cyan-600'}`} style={{ animationDuration: '3s' }} />
                 <span>📺 Painel do Espectador</span>
               </div>
             )}
@@ -732,6 +786,44 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {/* Floating Notifications (Toasts) */}
+      <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-3.5 w-full max-w-sm pointer-events-none">
+        <AnimatePresence>
+          {toasts.map((toast) => (
+            <motion.div
+              key={toast.id}
+              initial={{ opacity: 0, y: 30, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.95, transition: { duration: 0.18 } }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              className={`pointer-events-auto p-4 rounded-xl shadow-2xl border flex items-start gap-3 backdrop-blur-md transition-shadow hover:shadow-black/40 ${
+                toast.type === 'success'
+                  ? 'bg-neutral-900/95 border-emerald-500/30 text-neutral-100'
+                  : toast.type === 'error'
+                  ? 'bg-neutral-900/95 border-red-500/30 text-neutral-100'
+                  : 'bg-neutral-900/95 border-blue-500/30 text-neutral-100'
+              }`}
+            >
+              <div className="mt-0.5 shrink-0">
+                {toast.type === 'success' && <CheckCircle2 className="h-5 w-5 text-emerald-400" />}
+                {toast.type === 'error' && <AlertTriangle className="h-5 w-5 text-red-400" />}
+                {toast.type === 'info' && <Info className="h-5 w-5 text-blue-400" />}
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-neutral-200 leading-normal">{toast.message}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => removeToast(toast.id)}
+                className="text-neutral-500 hover:text-neutral-300 transition-colors shrink-0 cursor-pointer p-0.5"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
